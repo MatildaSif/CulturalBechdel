@@ -1,0 +1,60 @@
+---
+title: "Bechdel Project"
+output: html_document
+date: "2024-11-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# install packages
+install.packages("pacman")
+pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr)
+```
+## Loading data
+```{r}
+## Load data
+bechdel_df <- read_csv("data/bechdel_movies_2023_FEB.csv")
+imdb_df <- read_csv("data/imdb_top_2000_movies.csv")
+
+head(bechdel_df)
+head(imdb_df)
+```
+## Data Cleaning
+```{r}
+# rename title in imdb
+imdb_df <- imdb_df %>% rename(title = "Movie Name")
+
+# lowercase all titles in bechdel and in imdb df
+bechdel_df$title <- tolower(bechdel_df$title)
+imdb_df$title <- tolower(imdb_df$title)
+
+
+# Remove all punctuation from titles
+bechdel_df$title <- gsub("[[:punct:]]", "", bechdel_df$title)
+imdb_df$title <- gsub("[[:punct:]]", "", imdb_df$title)
+
+# merge all data frames based on title column
+df <- merge(imdb_df, bechdel_df, by = "title")
+
+# Remove following columns: Overview, Runtime, Poster_Link, date, year, submitterid, id
+df <- df %>% 
+  subset(select = -c(date, year, submitterid, id))
+
+head(df)
+
+# All column name spaces converted to underscore
+colnames(df) <- gsub(" ", "_", colnames(df))
+```
+Columns:
+rating - 
+dubious -
+imdbid - 
+visible -
+Certificate - 
+Meta_score - 
+No_of_Votes - 
+Gross - 
+
