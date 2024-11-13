@@ -9,6 +9,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+## load in data
+
+```
+
+
+```{r}
 # install packages
 install.packages("pacman")
 pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr)
@@ -16,8 +22,8 @@ pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr)
 ## Loading data
 ```{r}
 ## Load data
-bechdel_df <- read_csv("data/bechdel_movies_2023_FEB.csv")
-imdb_df <- read_csv("data/imdb_top_2000_movies.csv")
+bechdel_df <- read_csv("../data/bechdel_movies_2023_FEB.csv")
+imdb_df <- read_csv("../data/imdb_top_2000_movies.csv")
 
 head(bechdel_df)
 head(imdb_df)
@@ -53,8 +59,10 @@ rating -
 dubious -
 imdbid - 
 visible -
-Certificate - 
-Meta_score - 
-No_of_Votes - 
-Gross - 
+
+Meta_score - Metascore er en films rating på IMDB. Den beregnes på den måde at der oprettes en gruppe af kritikere der anmelder film og derefter får deres anmeldelse tildelt en score. Gennemsnittet af disse scores bliver til ét tal og en farve, der så bliver til filmens Metascore: https://www.metacritic.com/about-us/ 
+
+No_of_Votes - Antal personer der har stemt på filmen. Jeg er lidt tvivl om det er alle med en bruger og de kritikere som de bruger til at lave metaratings kombineret, eller kun en af dem. Prøver at se hvor jeg kan undersøge
+
+Gross - Filmens totalte indtjening. Indeholder NA-værdier
 
