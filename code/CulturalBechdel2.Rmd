@@ -18,7 +18,7 @@ pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, reshape2)
 ## Loading data
 ```{r}
 ## Load data
-bechdel2_df <- read_csv("../data/Bechdel_IMDB.csv")
+bechdel2_df <- read_csv("../data/Bechdel_IMDB_Merge0524.csv")
 
 df_subset <- bechdel2_df %>% filter(year >=2011)
 ```
@@ -128,17 +128,47 @@ data_wide$year <- data_wide$year - 2011
 model0 <- lm(bechdelRating ~ after2017, data = data_wide)
 summary(model0)
 ```
+```{r}
+ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
+  geom_smooth(method = "lm", se = TRUE, color = "dark red") +
+  labs(title = "Increase in Bechdel rating after 2017",
+       x = "Before and after 2017", # måske ændre navnet på x-aksen ? men til hvad?
+       y = "Bechdel rating") +
+  theme_minimal(base_size = 14) + 
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "italic"),
+    axis.title.y = element_text(face = "italic"))
+  )
+
+# husk at få ændret y aksen
+
+```
+
+
 ```{r linear model}
-
+# Linear model with all genres
 model1 <- lm(bechdelRating ~ after2017 + Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western, data = data_wide)
-
 summary(model1)
 
 ```
 
 ```{r}
-ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
+ggplot(data_long, aes(x = after2017, y = bechdelRating, group = genre, color = genre)) +
   geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Bechdel rating over time",
+       x = "Year",
+       y = "Bechdel rating")
+
+# Få lavet med de signifikante
+
+```
+
+
+
+```{r}
+ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
+  geom_smooth(method = "lm", se = TRUE) +
   labs(title = "Bechdel rating over time",
        x = "Year",
        y = "Bechdel rating") +
