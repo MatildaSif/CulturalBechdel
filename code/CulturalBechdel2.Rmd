@@ -1,0 +1,177 @@
+---
+title: "CulturalBechdel2"
+author: "Anna"
+date: "2024-11-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# install packages
+install.packages("pacman")
+install.packages("reshape2")
+pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, reshape2)
+```
+## Loading data
+```{r}
+## Load data
+bechdel2_df <- read_csv("../data/Bechdel_IMDB_Merge0524.csv")
+
+df_subset <- bechdel2_df %>% filter(year >=2011)
+```
+```{r}
+# Plot number of films for each release year, see every 5 years on x-axis for each data set
+df_subset %>%
+  count(year) %>%
+  ggplot(aes(x = year, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films for each release year",
+       x = "Release Year",
+       y = "Count") +
+  scale_x_continuous(breaks = seq(1900, 2020, by = 5))  # Show every 5 years on x-axis
+
+```
+
+```{r}
+# Make table with no. of films with each rating value of 0-3
+df_subset %>% 
+  group_by(bechdelRating) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(x = bechdelRating, y = count)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films with each rating value",
+       x = "Rating",
+       y = "Count")
+```
+```{r}
+# plot all genres
+df_subset %>%
+  gather(key = "genre_column", value = "genre_value", genre1:genre3) %>%  # Gather all genre columns
+  filter(!is.na(genre_value)) %>%  # Remove rows where genre is NA
+  count(genre_value, name = "Count") %>%  # Count occurrences of each genre
+  ggplot(aes(x = reorder(genre_value, -Count), y = Count)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films in each genre category",
+       x = "Genre",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# plot only first genre
+df_subset %>%
+  count(genre1) %>%
+  ggplot(aes(x = genre1, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films in each genre category",
+       x = "Genre",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# facetwrap by Bechdel rating
+df_subset %>%
+  gather(key = "genre_column", value = "genre_value", genre1:genre3) %>%  # Gather all genre columns
+  filter(!is.na(genre_value)) %>%  # Remove rows where genre is NA
+  count(bechdelRating, genre_value, name = "Count") %>%  # Count occurrences of each genre
+  ggplot(aes(x = reorder(genre_value, -Count), y = Count)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films in each genre category",
+       x = "Genre",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~ bechdelRating ,ncol=1)  # Facet by Rating
+
+```
+```{r data cleaning}
+# adding a before or after 2017 column
+df_subset$after2017 <- ifelse(df_subset$year > 2017, 1, 0)
+
+# encoding genre as one hot instead
+
+# Reshape and one-hot encode genres
+data_long <- df_subset %>%
+  pivot_longer(cols = starts_with("genre"), names_to = "genre_type", values_to = "genre") %>%
+  select(-genre_type)  # Remove unnecessary column
+
+data_long <- melt(df_subset, id.vars = c("title", "bechdelRating", "year", "after2017"), 
+                  measure.vars = c("genre1", "genre2", "genre3"),
+                  variable.name = "genre_type", value.name = "genre")
+
+data_wide <- dcast(data_long, title + bechdelRating + year + after2017 ~ genre, 
+                      fun.aggregate = length, value.var = "genre")
+
+# removing NA and backslash N column and News (only one movie has this genre)
+data_wide <- data_wide %>% 
+  select(-c('NA', 5, 'News'))
+
+# doing the same for data long (used for plotting)
+data_long <- data_long %>% 
+  filter(genre != "NA" & genre != "News")
+
+data_long <- data_long[-1304, ] # because i could not remove the backlash N value in other ways
+
+# renaming SciFi column
+data_wide$SciFi <- data_wide$`Sci-Fi`
+
+# doing the same for data long
+data_long$genre <- gsub("-", "", data_long$genre)
+
+```
+
+```{r encoding year differently}
+data_wide$year <- data_wide$year - 2011
+```
+
+
+```{r}
+model0 <- lm(bechdelRating ~ after2017, data = data_wide)
+summary(model0)
+```
+```{r}
+ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
+  geom_smooth(method = "lm", se = TRUE, color = "dark red") +
+  labs(title = "Increase in Bechdel rating after 2017",
+       x = "Before and after 2017", # måske ændre navnet på x-aksen ? men til hvad?
+       y = "Bechdel rating") +
+  theme_minimal(base_size = 14) + 
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "italic"),
+    axis.title.y = element_text(face = "italic"))
+  )
+
+# husk at få ændret y aksen
+
+```
+
+
+```{r linear model}
+# Linear model with all genres
+model1 <- lm(bechdelRating ~ after2017 + Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western, data = data_wide)
+summary(model1)
+
+```
+
+```{r}
+ggplot(data_long, aes(x = after2017, y = bechdelRating, group = genre, color = genre)) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Bechdel rating over time",
+       x = "Year",
+       y = "Bechdel rating")
+
+# Få lavet med de signifikante
+
+```
+
+
+
+```{r}
+ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Bechdel rating over time",
+       x = "Year",
+       y = "Bechdel rating") +
+  facet_wrap(~genre)
+```
+

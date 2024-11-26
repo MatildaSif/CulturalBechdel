@@ -16,16 +16,47 @@ pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr)
 ## Loading data
 ```{r}
 ## Load data
-bechdel_df <- read_csv("data/bechdel_movies_2023_FEB.csv")
-imdb_df <- read_csv("data/imdb_top_2000_movies.csv")
+bechdel_df <- read_csv("../data/bechdel_movies_2023_FEB.csv")
+imdb_df <- read_csv("../data/IMDb_Dataset_3.csv")
 
 head(bechdel_df)
 head(imdb_df)
 ```
+Info:
+The bechdel test data is from the bechdeltest.com website API scraped originally. Then it is collated and downloaded from someone else on Kaggle. It only shows the movies that have been approved by the bechdeltest.com website. 
+
+```{r}
+bechdel_df$year <- as.numeric(bechdel_df$year)
+imdb_df$Year <- as.numeric(imdb_df$Year)
+
+# Plot number of films for each release year, see every 5 years on x-axis for each data set
+bechdel_df %>%
+  count(year) %>%
+  ggplot(aes(x = year, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films for each release year",
+       x = "Release Year",
+       y = "Count") +
+  scale_x_continuous(breaks = seq(1900, 2020, by = 5))  # Show every 5 years on x-axis
+
+# All column name spaces converted to underscore
+colnames(imdb_df) <- gsub(" ", "_", colnames(imdb_df))
+imdb_df %>%
+  count(Year) %>%
+  ggplot(aes(x = Year, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films for each release year",
+       x = "Release Year",
+       y = "Count") +
+  scale_x_continuous(breaks = seq(1900, 2020, by = 5))  # Show every 5 years on x-axis
+```
+
+
 ## Data Cleaning
 ```{r}
 # rename title in imdb
-imdb_df <- imdb_df %>% rename(title = "Movie Name")
+imdb_df <- imdb_df %>% rename(title = Title)
+bechdel_df <- bechdel_df %>% rename(Year = year)
 
 # lowercase all titles in bechdel and in imdb df
 bechdel_df$title <- tolower(bechdel_df$title)
@@ -36,25 +67,117 @@ imdb_df$title <- tolower(imdb_df$title)
 bechdel_df$title <- gsub("[[:punct:]]", "", bechdel_df$title)
 imdb_df$title <- gsub("[[:punct:]]", "", imdb_df$title)
 
-# merge all data frames based on title column
-df <- merge(imdb_df, bechdel_df, by = "title")
+## Remove all numbers from titles
+bechdel_df$title <- gsub("[0-9]", "", bechdel_df$title)
+imdb_df$title <- gsub("[0-9]", "", imdb_df$title)
 
-# Remove following columns: Overview, Runtime, Poster_Link, date, year, submitterid, id
+# Remove any leading spaces from dfs
+bechdel_df$title <- str_trim(bechdel_df$title, side = "left")
+imdb_df$title <- str_trim(imdb_df$title, side = "left")
+
+# merge all data frames based on title and Year columns
+dfs <- list(bechdel_df, imdb_df)
+df <- reduce(dfs, inner_join, by = c("title", "Year"))
+
+
+
+# Remove following columns: Poster-src, Star_Cast, Overview, Duration_(minutes), Poster_src, date, year, submitterid, id
 df <- df %>% 
-  subset(select = -c(date, year, submitterid, id))
+  subset(select = -c(date, id, Star_Cast, `Duration_(minutes)`, `Poster-src`, submitterid))
 
 head(df)
 
 # All column name spaces converted to underscore
 colnames(df) <- gsub(" ", "_", colnames(df))
 ```
+
 Columns:
+
+IMDB rating - 
+The average rating of the movie on IMDB from IMDB users - each user gets one vote. - https://help.imdb.com/article/imdb/track-movies-tv/ratings-faq/G67Y87TFYYP6TWAV#
+
+id - 
+The bechdeltest.com unique id.
+
 rating - 
-dubious -
+The actual score. Number from 0 to 3 (0 means no two women, 1 means no talking, 2 means talking about a man, 3 means it passes the test)
+
+dubious - 
+If the submitter considers the score is dubious on the bechdeltest.com
+
 imdbid - 
-visible -
+The ID of the movie on IMDB
+
+visible - 
+Has this movie been approved (currently only approved movies are returned, so this value will always be 1)
+
+Genre -
+The genre of the movie - IMDB users are able to edit and add these. Multiple genres are sometimes added
+
 Certificate - 
 Meta_score - 
 No_of_Votes - 
 Gross - 
 
+
+
+## Preliminary plotting of data
+```{r}
+# Make table with no. of films with each rating value of 0-3
+df %>% 
+  group_by(rating) %>% 
+  summarise(count = n()) %>% 
+  ggplot(aes(x = rating, y = count)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films with each rating value",
+       x = "Rating",
+       y = "Count")
+```
+
+```{r}
+# plot number of films in each genre category across columns "genre1" "genre2" "genre3"
+df %>%
+  gather(key = "genre_column", value = "genre_value", Genre:Third_Genre) %>%  # Gather all genre columns
+  filter(!is.na(genre_value)) %>%  # Remove rows where genre is NA
+  count(genre_value, name = "Count") %>%  # Count occurrences of each genre
+  ggplot(aes(x = reorder(genre_value, -Count), y = Count)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films in each genre category",
+       x = "Genre",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+## Facetwrap by Bechdel rating
+df %>%
+  gather(key = "genre_column", value = "genre_value", Genre:Third_Genre) %>%  # Gather all genre columns
+  filter(!is.na(genre_value)) %>%  # Remove rows with NA genres
+  count(rating, genre_value, name = "Count") %>%  # Count occurrences of each genre per rating
+  ggplot(aes(x = reorder(genre_value, -Count), y = Count)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films in each genre category by Rating",
+       x = "Genre",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~rating,ncol=1)  # Facet by Rating
+```
+
+
+```{r}
+# Remove all non-numeric characters in release year values
+df$Year <- gsub("[^0-9]", "", df$Year)
+# Look at all unique values in release year and see in numerical order
+df$Year <- as.numeric(df$Year)
+unique(df$Year)
+
+
+# Plot number of films for each release year, see every 5 years on x-axis
+df %>%
+  count(Year) %>%
+  ggplot(aes(x = Year, y = n)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Number of films for each release year",
+       x = "Release Year",
+       y = "Count") +
+  scale_x_continuous(breaks = seq(1900, 2020, by = 5))  # Show every 5 years on x-axis
+```
