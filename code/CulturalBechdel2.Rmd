@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # install packages
 install.packages("pacman")
 install.packages("reshape2")
-pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, reshape2)
+pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, reshape2, MASS)
 ```
 ## Loading data
 ```{r}
@@ -91,7 +91,7 @@ df_subset$after2017 <- ifelse(df_subset$year > 2017, 1, 0)
 
 # Reshape and one-hot encode genres
 data_long <- df_subset %>%
-  pivot_longer(cols = starts_with("genre"), names_to = "genre_type", values_to = "genre") %>%
+  pivot_longer(cols = starts_with("genre"), names_to = "genre_type", values_to = "genre") %>% 
   select(-genre_type)  # Remove unnecessary column
 
 data_long <- melt(df_subset, id.vars = c("title", "bechdelRating", "year", "after2017"), 
@@ -123,6 +123,87 @@ data_long$genre <- gsub("-", "", data_long$genre)
 data_wide$year <- data_wide$year - 2011
 ```
 
+Ordinal logistic regression
+```{r}
+df_subset$bechdelRating <- as.factor(df_subset$bechdelRating)
+df_subset$after2017 <- as.factor(df_subset$after2017)
+
+# Model
+model5 <- polr(bechdelRating ~ after2017, data = df_subset, Hess = TRUE)
+summary(model5)
+
+# Predicted probabilities
+predicted_probs <- predict(model5, type = "probs")
+predicted_probs <- as.data.frame(predicted_probs) # make df
+colnames(predicted_probs) <- levels(df_subset$bechdelRating) # Add column names to match category labels
+ 
+# Add predictions to the original data
+data_with_probs <- cbind(df_subset, predicted_probs)
+
+# Reshape the dataset into long format
+data_long_2 <- data_with_probs %>%
+  pivot_longer(
+    cols = all_of(levels(df_subset$bechdelRating)), # Columns for categories
+    names_to = "bechdelCategory",                  # New column for category labels
+    values_to = "probability"                      # New column for probabilities
+  )
+
+
+# Calculate P-values
+model_summary <- summary(model5)
+
+# Extract the coefficients, standard errors, and t-values
+coefficients <- model_summary$coef[, "Value"]
+standard_errors <- model_summary$coef[, "Std. Error"]
+t_values <- model_summary$coef[, "t value"]
+
+# Calculate p-values using the normal approximation
+p_values <- 2 * pnorm(abs(t_values), lower.tail = FALSE)
+# Print the p-values
+print(p_values)
+
+# Output the coefficients and p-values for easy interpretation
+results_df <- data.frame(
+  Coefficients = coefficients,
+  StandardErrors = standard_errors,
+  tValues = t_values,
+  pValues = p_values
+)
+
+# Print the results
+print(results_df)
+
+```
+
+
+```{r}
+## Plot
+ggplot(data_long_2, aes(x = after2017, y = probability, fill = bechdelCategory)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Predicted Probabilities of Bechdel Ratings",
+    x = "Before and After 2017",
+    y = "Probability",
+    fill = "Bechdel Rating"
+  ) +
+  theme_minimal()
+
+
+ggplot(data_long_2, aes(x = as.numeric(as.factor(after2017)), y = probability, color = bechdelCategory)) +
+  geom_line(aes(group = bechdelCategory)) +
+  geom_point() +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Before 2017", "After 2017")) +
+  labs(
+    title = "Predicted Probabilities of Bechdel Ratings",
+    x = "Before and After 2017",
+    y = "Probability",
+    color = "Bechdel Rating"
+  ) +
+  theme_minimal()
+
+
+```
+
 
 ```{r}
 model0 <- lm(bechdelRating ~ after2017, data = data_wide)
@@ -139,7 +220,7 @@ ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
     plot.title = element_text(hjust = 0.5, face = "bold"),
     axis.title = element_text(face = "italic"),
     axis.title.y = element_text(face = "italic"))
-  )
+  
 
 # husk at få ændret y aksen
 
