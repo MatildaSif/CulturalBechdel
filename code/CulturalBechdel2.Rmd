@@ -13,7 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # install packages
 install.packages("pacman")
 install.packages("reshape2")
-pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, reshape2, MASS)
+pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, MASS)
+
 ```
 ## Loading data
 ```{r}
@@ -89,11 +90,10 @@ df_subset$after2017 <- ifelse(df_subset$year > 2017, 1, 0)
 
 # encoding genre as one hot instead
 
-
 # Reshape and one-hot encode genres
 data_long <- df_subset %>%
   pivot_longer(cols = starts_with("genre"), names_to = "genre_type", values_to = "genre") %>% 
-  select(-genre_type)  # Remove unnecessary column
+  dplyr::select(-genre_type)  # Remove unnecessary column
 
 data_long <- melt(df_subset, id.vars = c("title", "bechdelRating", "year", "after2017"), 
                   measure.vars = c("genre1", "genre2", "genre3"),
@@ -104,7 +104,7 @@ data_wide <- dcast(data_long, title + bechdelRating + year + after2017 ~ genre,
 
 # removing NA and backslash N column and News (only one movie has this genre)
 data_wide <- data_wide %>% 
-  select(-c('NA', 5, 'News'))
+  dplyr::select(-c('NA', 5, 'News'))
 
 # doing the same for data long (used for plotting)
 data_long <- data_long %>% 
@@ -126,25 +126,25 @@ data_wide$year <- data_wide$year - 2011
 
 Ordinal logistic regression
 ```{r}
-df_subset$bechdelRating <- as.factor(df_subset$bechdelRating)
-df_subset$after2017 <- as.factor(df_subset$after2017)
+data_wide$bechdelRating <- as.factor(data_wide$bechdelRating)
+data_wide$after2017 <- as.factor(data_wide$after2017)
 
 # Model
-model5 <- polr(bechdelRating ~ after2017, data = df_subset, Hess = TRUE)
+model5 <- polr(bechdelRating ~ after2017, data = data_wide, Hess = TRUE)
 summary(model5)
 
 # Predicted probabilities
 predicted_probs <- predict(model5, type = "probs")
 predicted_probs <- as.data.frame(predicted_probs) # make df
-colnames(predicted_probs) <- levels(df_subset$bechdelRating) # Add column names to match category labels
+colnames(predicted_probs) <- levels(data_wide$bechdelRating) # Add column names to match category labels
  
 # Add predictions to the original data
-data_with_probs <- cbind(df_subset, predicted_probs)
+data_with_probs <- cbind(data_wide, predicted_probs)
 
 # Reshape the dataset into long format
 data_long_2 <- data_with_probs %>%
   pivot_longer(
-    cols = all_of(levels(df_subset$bechdelRating)), # Columns for categories
+    cols = all_of(levels(data_wide$bechdelRating)), # Columns for categories
     names_to = "bechdelCategory",                  # New column for category labels
     values_to = "probability"                      # New column for probabilities
   )
@@ -206,6 +206,142 @@ ggplot(data_long_2, aes(x = as.numeric(as.factor(after2017)), y = probability, c
 ```
 
 
+Ordinal Logistic Regression with all genres
+```{r}
+# Linear model with all genres
+model1 <- polr(bechdelRating ~ after2017 + Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western, data = data_wide)
+
+summary(model1)
+```
+```{r}
+# 1. Predicted Probabilities (model1)
+# Generate predicted probabilities for all categories of 'bechdelRating'
+predicted_probs_model1 <- predict(model1, type = "probs")
+
+# Convert predicted probabilities to a data frame
+predicted_probs_df <- as.data.frame(predicted_probs_model1)
+
+# Assign the correct column names based on the levels of 'bechdelRating'
+colnames(predicted_probs_df) <- levels(data_wide$bechdelRating)
+
+# 2. Add predicted probabilities to the original dataset (without overwriting)
+data_with_probs_model1 <- cbind(data_wide, predicted_probs_df)
+
+# 3. Reshape the dataset into long format for visualization (without overwriting)
+data_long_model1 <- data_with_probs_model1 %>%
+  pivot_longer(
+    cols = all_of(levels(data_wide$bechdelRating)),  # Columns for categories
+    names_to = "bechdelCategory",                    # New column for category labels
+    values_to = "probability"                        # New column for probabilities
+  )
+
+# 4. Calculate p-values for the new model (model1)
+model1_summary <- summary(model1)
+
+# Extract the coefficients, standard errors, and t-values
+coefficients_model1 <- model1_summary$coef[, "Value"]
+standard_errors_model1 <- model1_summary$coef[, "Std. Error"]
+t_values_model1 <- model1_summary$coef[, "t value"]
+
+# Calculate p-values using the normal approximation
+p_values_model1 <- 2 * pnorm(abs(t_values_model1), lower.tail = FALSE)
+
+# Print the p-values
+print(p_values_model1)
+
+# 5. Output the coefficients and p-values for easy interpretation
+results_df_model1 <- data.frame(
+  Coefficients = coefficients_model1,
+  StandardErrors = standard_errors_model1,
+  tValues = t_values_model1,
+  pValues = p_values_model1
+)
+
+# Print the results
+print(results_df_model1)
+
+```
+
+```{r}
+# Get significant genres
+
+# 1. Get the summary of the model
+model1_summary <- summary(model1)
+
+# 2. Extract the coefficients, standard errors, t-values, and p-values for the model
+coefficients_model1 <- model1_summary$coef[, "Value"]
+standard_errors_model1 <- model1_summary$coef[, "Std. Error"]
+t_values_model1 <- model1_summary$coef[, "t value"]
+p_values_model1 <- 2 * pnorm(abs(t_values_model1), lower.tail = FALSE)
+
+# 3. Create a data frame with coefficients, standard errors, t-values, and p-values
+coefficients_df <- data.frame(
+  Coefficients = coefficients_model1,
+  StandardErrors = standard_errors_model1,
+  tValues = t_values_model1,
+  pValues = p_values_model1
+)
+# 4. Filter the coefficients corresponding to genres (excluding intercepts)
+# Get the column names of the genre variables
+genre_columns <- c("Action", "Adventure", "Animation", "Biography", "Comedy", 
+                   "Crime", "Documentary", "Drama", "Family", "Fantasy", 
+                   "History", "Horror", "Music", "Musical", "Mystery", 
+                   "Romance", "SciFi", "Sport", "Thriller", "War", "Western")
+
+# Subset only the genre-related coefficients and their p-values
+genre_pvalues_df <- coefficients_df[rownames(coefficients_df) %in% genre_columns, ]
+
+# 5. Filter to get genres with p-value < 0.05 (significant results)
+significant_genres <- genre_pvalues_df[genre_pvalues_df$pValues < 0.05, ]
+
+# 6. Print the significant genres
+print(significant_genres)
+```
+# Plot
+
+```{r}
+sig_genres <- rownames(significant_genres)
+
+# Filtrer data for kun de signifikante genrer
+data_significant <- data_long %>%
+  filter(genre %in% sig_genres)
+
+ggplot(data_significant, aes(x = as.numeric(as.factor(after2017)), y = bechdelRating, group = genre, color = genre)) +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Before 2017", "After 2017")) +
+  labs(title = "Bechdel rating over time for Significant Genres",
+       x = "Year",
+       y = "Bechdel rating") +
+  theme_minimal()
+
+
+ggplot(data_significant, aes(x = as.numeric(as.factor(after2017)), y = bechdelRating, group = genre, color = genre)) +
+  geom_smooth(method = "lm", se = TRUE) +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Before 2017", "After 2017")) +
+  labs(title = "Bechdel rating over time for Significant Genres",
+       x = "Year",
+       y = "Bechdel rating") +
+  theme_minimal()+
+  facet_wrap(~genre)
+```
+
+
+
+
+OLD MODELS & PLOTS:
+
+
+```{r}
+ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Bechdel rating over time",
+       x = "Year",
+       y = "Bechdel rating") +
+  facet_wrap(~genre)
+```
+
+
+
 ```{r}
 model0 <- lm(bechdelRating ~ after2017, data = data_wide)
 summary(model0)
@@ -228,6 +364,8 @@ ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
 ```
 
 
+
+
 ```{r linear model}
 # Linear model with all genres
 model1 <- lm(bechdelRating ~ after2017 + Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western, data = data_wide)
@@ -243,34 +381,4 @@ data_significant <- data_long %>%
   filter(genre %in% significant_genres)
 ```
 
-```{r}
-# Signifikante genrer er Action, Biography, Crime, Documentary, Romance, SciFi, Sport, War, Western 
-
-ggplot(data_significant, aes(x = after2017, y = bechdelRating, group = genre, color = genre)) +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "Bechdel rating over time for Significant Genres",
-       x = "Year",
-       y = "Bechdel rating") +
-  theme_minimal()
-
-
-ggplot(data_significant, aes(x = after2017, y = bechdelRating, group = genre, color = genre)) +
-  geom_smooth(method = "lm", se = TRUE) +
-  labs(title = "Bechdel rating over time for Significant Genres",
-       x = "Year",
-       y = "Bechdel rating") +
-  theme_minimal()+
-  facet_wrap(~genre)
-```
-
-
-
-```{r}
-ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
-  geom_smooth(method = "lm", se = TRUE) +
-  labs(title = "Bechdel rating over time",
-       x = "Year",
-       y = "Bechdel rating") +
-  facet_wrap(~genre)
-```
 
