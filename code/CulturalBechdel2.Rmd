@@ -89,6 +89,7 @@ df_subset$after2017 <- ifelse(df_subset$year > 2017, 1, 0)
 
 # encoding genre as one hot instead
 
+
 # Reshape and one-hot encode genres
 data_long <- df_subset %>%
   pivot_longer(cols = starts_with("genre"), names_to = "genre_type", values_to = "genre") %>% 
@@ -213,7 +214,7 @@ summary(model0)
 ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
   geom_smooth(method = "lm", se = TRUE, color = "dark red") +
   labs(title = "Increase in Bechdel rating after 2017",
-       x = "Before and after 2017", # måske ændre navnet på x-aksen ? men til hvad?
+       x = "Before and after 2017",
        y = "Bechdel rating") +
   theme_minimal(base_size = 14) + 
   theme(
@@ -230,19 +231,36 @@ ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
 ```{r linear model}
 # Linear model with all genres
 model1 <- lm(bechdelRating ~ after2017 + Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western, data = data_wide)
+
 summary(model1)
 
 ```
+```{r}
+significant_genres <- c("Action", "Biography", "Crime", "Documentary", "Romance", "SciFi", "Sport", "War", "Western")
+
+# Filtrer data for kun de signifikante genrer
+data_significant <- data_long %>%
+  filter(genre %in% significant_genres)
+```
 
 ```{r}
-ggplot(data_long, aes(x = after2017, y = bechdelRating, group = genre, color = genre)) +
+# Signifikante genrer er Action, Biography, Crime, Documentary, Romance, SciFi, Sport, War, Western 
+
+ggplot(data_significant, aes(x = after2017, y = bechdelRating, group = genre, color = genre)) +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "Bechdel rating over time",
+  labs(title = "Bechdel rating over time for Significant Genres",
        x = "Year",
-       y = "Bechdel rating")
+       y = "Bechdel rating") +
+  theme_minimal()
 
-# Få lavet med de signifikante
 
+ggplot(data_significant, aes(x = after2017, y = bechdelRating, group = genre, color = genre)) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Bechdel rating over time for Significant Genres",
+       x = "Year",
+       y = "Bechdel rating") +
+  theme_minimal()+
+  facet_wrap(~genre)
 ```
 
 
