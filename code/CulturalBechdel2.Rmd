@@ -153,8 +153,6 @@ model1 <- lm(bechdelRating ~ after2017 + Action + Adventure + Animation + Biogra
 
 summary(model1)
 
-# Create new dataframe with siginificant genres and their coefficients
-
 ```
 ```{r}
 significant_genres <- c("Action", "Biography", "Crime", "Documentary", "Romance", "SciFi", "Sport", "War", "Western")
