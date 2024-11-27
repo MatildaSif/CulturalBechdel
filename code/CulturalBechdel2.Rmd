@@ -132,7 +132,7 @@ data_wide$bechdelRating <- as.factor(data_wide$bechdelRating)
 data_wide$after2017 <- as.factor(data_wide$after2017)
 
 # Model
-model5 <- polr(bechdelRating ~ after2017, data = data_wide, Hess = TRUE)
+model5 <- polr(bechdelRating ~ after2017, data = data_wide)
 summary(model5)
 
 # Predicted probabilities
@@ -230,7 +230,10 @@ Ordinal Logistic Regression with all genres
 # making two different to see which is best collinarity wise (chunk underneath)
 model2 <- polr(bechdelRating ~ after2017 * (Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western), data = data_wide)
 
-model3 <- polr(bechdelRating ~ after2017 : (Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western), 
+
+data_wide$after2017 <- as.factor(data_wide$after2017)
+
+model3 <- polr(bechdelRating ~ 1 + after2017 : (Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western), 
                data = data_wide)
 
 ```
@@ -286,6 +289,51 @@ coefficients_df <- data.frame(
   tValues = t_values_model3,
   pValues = p_values_model3
 )
+```
+
+# Plot
+```{r PLOT genres}
+ggplot(data_long_model3, aes(x = after2017, y = probability, fill = bechdelCategory)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Predicted Probabilities of Bechdel Ratings",
+    x = "Before and After 2017",
+    y = "Probability",
+    fill = "Bechdel Rating"
+  ) +
+  theme_minimal()+
+  facet_wrap(~genre)
+
+
+ggplot(data_long_model3, aes(x = as.numeric(as.factor(after2017)), y = probability, color = bechdelCategory)) +
+  geom_line(aes(group = bechdelCategory)) +
+  geom_point() +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Before 2017", "After 2017")) +
+  labs(
+    title = "Predicted Probabilities of Bechdel Ratings",
+    x = "Before and After 2017",
+    y = "Probability",
+    color = "Bechdel Rating"
+  ) +
+  theme_minimal()+
+  facet_wrap(~genre)
+
+
+ggplot(data_long_model3, aes(x = as.numeric(as.factor(after2017)), y = bechdelRating, group = genre, color = genre)) +
+  geom_smooth(method = "lm", se = TRUE) +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Before 2017", "After 2017")) +
+  labs(title = "Bechdel rating over time for Significant Genres",
+       x = "Year",
+       y = "Bechdel rating") +
+  theme_minimal()+
+  facet_wrap(~genre)
+```
+
+
+
+OLD
+
+
 # 4. Filter the coefficients corresponding to genres (excluding intercepts)
 # Get the column names of the genre variables
 genre_columns <- c("after20170:Action", "after20171:Action", "after20170:Adventure", "after20171:Adventure", "after20170:Animation", "after20171:Animation", "after20170:Biography", "after20171:Biography", "after20170:Comedy", "after20171:Comedy", "after20170:Crime", "after20171:Crime", "after20170:Documentary", "after20171:Documentary", "after20170:Drama", "after20171:Drama", "after20170:Family", "after20171:Family", "after20170:Fantasy", "after20171:Fantasy", "after20170:History", "after20171:History", "after20170:Horror", "after20171:Horror", "after20170:Music", "after20171:Music", "after20170:Musical", "after20171:Musical", "after20170:Mystery", "after20171:Mystery", "after20170:Romance", "after20171:Romance", "after20170:SciFi", "after20171:SciFi", "after20170:Sport", "after20171:Sport", "after20170:Thriller", "after20171:Thriller", "after20170:War")
@@ -329,154 +377,3 @@ print(data_long_model3)
 ```
 
 
-# Plot
-```{r PLOT genres}
-ggplot(data_long_model3, aes(x = after2017, y = probability, fill = bechdelCategory)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(
-    title = "Predicted Probabilities of Bechdel Ratings",
-    x = "Before and After 2017",
-    y = "Probability",
-    fill = "Bechdel Rating"
-  ) +
-  theme_minimal()+
-  facet_wrap(~genre)
-
-
-ggplot(data_long_model3, aes(x = as.numeric(as.factor(after2017)), y = probability, color = bechdelCategory)) +
-  geom_line(aes(group = bechdelCategory)) +
-  geom_point() +
-  scale_x_continuous(breaks = c(1, 2), labels = c("Before 2017", "After 2017")) +
-  labs(
-    title = "Predicted Probabilities of Bechdel Ratings",
-    x = "Before and After 2017",
-    y = "Probability",
-    color = "Bechdel Rating"
-  ) +
-  theme_minimal()+
-  facet_wrap(~genre)
-
-
-ggplot(data_long_model3, aes(x = as.numeric(as.factor(after2017)), y = bechdelRating, group = genre, color = genre)) +
-  geom_smooth(method = "lm", se = TRUE) +
-  scale_x_continuous(breaks = c(1, 2), labels = c("Before 2017", "After 2017")) +
-  labs(title = "Bechdel rating over time for Significant Genres",
-       x = "Year",
-       y = "Bechdel rating") +
-  theme_minimal()+
-  facet_wrap(~genre)
-```
-
-
-
-
-OLD MODELS & PLOTS:
-
-
-```{r}
-ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
-  geom_smooth(method = "lm", se = TRUE) +
-  labs(title = "Bechdel rating over time",
-       x = "Year",
-       y = "Bechdel rating") +
-  facet_wrap(~genre)
-```
-
-
-
-```{r}
-model0 <- lm(bechdelRating ~ after2017, data = data_wide)
-summary(model0)
-```
-```{r}
-ggplot(data_long, aes(x = after2017, y = bechdelRating)) +
-  geom_smooth(method = "lm", se = TRUE, color = "dark red") +
-  labs(title = "Increase in Bechdel rating after 2017",
-       x = "Before and after 2017",
-       y = "Bechdel rating") +
-  theme_minimal(base_size = 14) + 
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    axis.title = element_text(face = "italic"),
-    axis.title.y = element_text(face = "italic"))
-  
-
-# husk at få ændret y aksen
-
-```
-
-
-
-
-```{r linear model}
-# Linear model with all genres
-model1 <- lm(bechdelRating ~ after2017 + Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western, data = data_wide)
-
-summary(model1)
-
-```
-
-```{r}
-significant_genres <- c("Action", "Biography", "Crime", "Documentary", "Romance", "SciFi", "Sport", "War", "Western")
-
-# Filtrer data for kun de signifikante genrer
-data_significant <- data_long %>%
-  filter(genre %in% significant_genres)
-```
-
-
-GEnre model 01
-```{r genre model}
-model1 <- polr(bechdelRating ~ after2017 + Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western, data = data_wide)
-
-summary(model1)
-```
-```{r calculate probabilities for plots}
-# 1. Predicted Probabilities (model1)
-# Generate predicted probabilities for all categories of 'bechdelRating'
-predicted_probs_model1 <- predict(model1, type = "probs")
-
-# Convert predicted probabilities to a data frame
-predicted_probs_df <- as.data.frame(predicted_probs_model1)
-
-# Assign the correct column names based on the levels of 'bechdelRating'
-colnames(predicted_probs_df) <- levels(data_wide$bechdelRating)
-
-# 2. Add predicted probabilities to the original dataset (without overwriting)
-data_with_probs_model1 <- cbind(data_wide, predicted_probs_df)
-
-# 3. Reshape the dataset into long format for visualization (without overwriting)
-data_long_model1 <- data_with_probs_model1 %>%
-  pivot_longer(
-    cols = all_of(levels(data_wide$bechdelRating)),  # Columns for categories
-    names_to = "bechdelCategory",                    # New column for category labels
-    values_to = "probability"                        # New column for probabilities
-  )
-```
-```{r calculate p-values and CI}
-# 4. Calculate p-values for the new model (model1)
-model1_summary <- summary(model1)
-
-# Extract the coefficients, standard errors, and t-values
-coefficients_model1 <- model1_summary$coef[, "Value"]
-standard_errors_model1 <- model1_summary$coef[, "Std. Error"]
-t_values_model1 <- model1_summary$coef[, "t value"]
-
-# Calculate p-values using the normal approximation
-p_values_model1 <- 2 * pnorm(abs(t_values_model1), lower.tail = FALSE)
-
-# Print the p-values
-print(p_values_model1)
-
-# 5. Output the coefficients and p-values for easy interpretation
-results_df_model1 <- data.frame(
-  Coefficients = coefficients_model1,
-  StandardErrors = standard_errors_model1,
-  tValues = t_values_model1,
-  pValues = p_values_model1
-)
-
-# Print the results
-print(results_df_model1)
-
-```
