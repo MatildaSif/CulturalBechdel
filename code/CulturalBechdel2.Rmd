@@ -13,7 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # install packages
 install.packages("pacman")
 install.packages("reshape2")
-pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, MASS)
+install.packages('brant')
+pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, MASS, brant)
 
 ```
 ## Loading data
@@ -163,12 +164,18 @@ p_values <- 2 * pnorm(abs(t_values), lower.tail = FALSE)
 # Print the p-values
 print(p_values)
 
+# Calculate confidence intervals (95%)
+lower_bound <- coefficients - 1.96 * standard_errors
+upper_bound <- coefficients + 1.96 * standard_errors
+
 # Output the coefficients and p-values for easy interpretation
 results_df <- data.frame(
   Coefficients = coefficients,
   StandardErrors = standard_errors,
   tValues = t_values,
-  pValues = p_values
+  pValues = p_values,
+  ci_lower = lower_bound,
+  ci_upper = upper_bound
 )
 
 # Print the results
@@ -176,6 +183,13 @@ print(results_df)
 
 ```
 
+```{r testing for the proportional odds assumption}
+# Perform the Brant test: this is a test for the proportional odds assumption (which is that the relationship between the predictors and the log-odds of the response variable is constant across all thresholds)
+brant_test <- brant(model5)
+
+# Print the results: if p-value is HIGHER than 0.05, then we are good. 
+print(brant_test)
+```
 
 ```{r}
 ## Plot
@@ -208,7 +222,6 @@ ggplot(data_long_2, aes(x = as.numeric(as.factor(after2017)), y = probability, c
 
 Ordinal Logistic Regression with all genres
 ```{r}
-# Linear model with all genres
 model1 <- polr(bechdelRating ~ after2017 + Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western, data = data_wide)
 
 summary(model1)
@@ -261,6 +274,24 @@ results_df_model1 <- data.frame(
 print(results_df_model1)
 
 ```
+```{r interaction model}
+
+# making two different to see which is best collinarity wise (chunk underneath)
+model2 <- polr(bechdelRating ~ after2017 * (Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western), data = data_wide)
+
+model3 <- polr(bechdelRating ~ after2017 : (Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western), data = data_wide)
+
+```
+```{r checking for multicollinearity between predictors}
+vif(model2)
+vif(model3)
+
+# model 2 has wayy to much collinearity (after2017 especially), model3 looks good tho, lets check that output:
+
+summary(model3)
+
+```
+
 
 ```{r}
 # Get significant genres
@@ -373,6 +404,7 @@ model1 <- lm(bechdelRating ~ after2017 + Action + Adventure + Animation + Biogra
 summary(model1)
 
 ```
+
 ```{r}
 significant_genres <- c("Action", "Biography", "Crime", "Documentary", "Romance", "SciFi", "Sport", "War", "Western")
 
