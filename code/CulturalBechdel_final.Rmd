@@ -1,6 +1,6 @@
 ---
-title: "CulturalBechdel2"
-author: "Anna"
+title: "CulturalBechdel-Final"
+author: "Anna Schaap Kristensen (ASK), Matilda Rhys-Kristensen (MRK), Josephine Kianna Pallisgaard Sørensen (JKS)"
 date: "2024-11-19"
 output: html_document
 ---
@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r, JKS}
 # install packages
 install.packages("pacman")
 install.packages("reshape2")
@@ -19,7 +19,7 @@ pacman::p_load(tidyverse, readr, ggplot2, dplyr, tidyr, car, MASS, brant, ggeffe
 
 ```
 ## Loading data
-```{r}
+```{r, JKS}
 ## Load data
 bechdel2_df <- read_csv("../data/Bechdel_IMDB_Merge0524.csv")
 
@@ -27,7 +27,7 @@ bechdel2_df <- read_csv("../data/Bechdel_IMDB_Merge0524.csv")
 df_subset <- bechdel2_df %>% filter(year >=2011)
 ```
 # Exporing our Data
-```{r}
+```{r, JKS}
 # Plotting number of films for each release year, see every 5 years on x-axis for each data set
 df_subset %>%
   count(year) %>%
@@ -40,7 +40,7 @@ df_subset %>%
 
 ```
 
-```{r}
+```{r, MRK}
 # Making table with no. of films with each rating value of 0-3
 df_subset %>% 
   group_by(bechdelRating) %>% 
@@ -51,7 +51,7 @@ df_subset %>%
        x = "Rating",
        y = "Count")
 ```
-```{r}
+```{r, MRK}
 # plot all genres
 df_subset %>%
   gather(key = "genre_column", value = "genre_value", genre1:genre3) %>%  # Gather all genre columns
@@ -88,7 +88,7 @@ df_subset %>%
   facet_wrap(~ bechdelRating ,ncol=1)  # Facet by Rating
 
 ```
-```{r data cleaning}
+```{r data cleaning, ASK}
 # adding a before or after 2017 column (binary variable) 
 df_subset$after2017 <- ifelse(df_subset$year > 2017, 1, 0)
 
@@ -123,7 +123,7 @@ data_long$genre <- gsub("-", "", data_long$genre)
 ```
 
 Ordinal logistic regression
-```{r Hypothesis 1}
+```{r Hypothesis 1, JSK}
 # convert to factors
 data_wide$bechdelRating <- as.factor(data_wide$bechdelRating)
 data_wide$after2017 <- as.factor(data_wide$after2017)
@@ -133,7 +133,7 @@ model5 <- polr(bechdelRating ~ after2017, data = data_wide)
 summary(model5)
 
 ```
-```{r calculating p-values and CI}
+```{r calculating p-values and CI, MRK}
 # Calculate P-values
 model_summary <- summary(model5)
 
@@ -165,14 +165,14 @@ print(results_df)
 
 ```
 
-```{r testing for the proportional odds assumption}
+```{r testing for the proportional odds assumption, ASK}
 # Perform the Brant test: this is a test for the proportional odds assumption (which is that the relationship between the predictors and the log-odds of the response variable is constant across all thresholds)
 brant_test <- brant(model5)
 
 # Print the results: if p-value is HIGHER than 0.05, then we are good. 
 print(brant_test)
 ```
-```{r}
+```{r, JSK}
 # Plot the results using ggplot2
 ggplot(results_df, aes(x = Coefficients, y = Variable, color = Variable)) +
   geom_point(size = 3) +  # Plot the coefficients
@@ -191,7 +191,7 @@ ggplot(results_df, aes(x = Coefficients, y = Variable, color = Variable)) +
   theme_minimal()
 
 ```
-```{r calculating probabilities for plot}
+```{r calculating probabilities for plot, MRK}
 # Predicted probabilities
 predicted_probs <- predict(model5, type = "probs")
 predicted_probs <- as.data.frame(predicted_probs) # make df
@@ -221,7 +221,7 @@ data_long_2a <- data_long_2a %>%
 ```
 
 
-```{r}
+```{r, ASK}
 ggplot(data_long_2a, aes(x = as.numeric(as.factor(after2017)), y = probability, color = bechdelCategory)) +
   geom_line(aes(group = bechdelCategory)) +
   geom_point() +
@@ -238,7 +238,7 @@ ggplot(data_long_2a, aes(x = as.numeric(as.factor(after2017)), y = probability, 
 ```
 Ordinal Logistic Regression with all genres
 
-```{r Hypothesis 2: interaction genre model}
+```{r Hypothesis 2: interaction genre model, JSK}
 # making two different to see which is best multicolinarity wise (chunk underneath)
 model2 <- polr(bechdelRating ~ after2017 * (Action + Adventure + Animation + Biography + Comedy + Crime + Documentary + Drama + Family + Fantasy + History + Horror + Music + Musical + Mystery + Romance + SciFi + Sport + Thriller + War + Western), data = data_wide)
 
@@ -247,7 +247,7 @@ model3 <- polr(bechdelRating ~after2017 : (Action + Adventure + Animation + Biog
 
 ```
 
-```{r checking for multicolinearity between predictors}
+```{r checking for multicolinearity between predictors, MRK}
 vif(model2)
 vif(model3)
 
@@ -255,7 +255,7 @@ vif(model3)
 summary(model3)
 
 ```
-```{r testing for the proportional odds assumption}
+```{r testing for the proportional odds assumption, ASK}
 # Perform the Brant test: this is a test for the proportional odds assumption (which is that the relationship between the predictors and the log-odds of the response variable is constant across all thresholds)
 brant_test <- brant(model3)
 
@@ -264,7 +264,7 @@ print(brant_test)
 
 # massive violation for many predictors. probably because likelihood for genres changes across intercepts (not linear). Important to comment on!!
 ```
-```{r extracting model outputs and computing CIs from model summary}
+```{r extracting model outputs and computing CIs from model summary, JSK}
 # 1. Get the summary of the model 3
 model3_summary <- summary(model3)
 
@@ -288,7 +288,7 @@ coefficients_df <- data.frame(
 )
 
 ```
-```{r formatting data for plotting}
+```{r formatting data for plotting, MRK}
 # Extract coefficients and standard errors respectively for 2017 and before and for after 2017
 genre <- sub(".*:(.*)", "\\1", rownames(coefficients_df)[grepl("20170", rownames(coefficients_df))])
 coeff_20170 <- coefficients_df[grepl("20170", rownames(coefficients_df)), "Coefficients"]
@@ -332,7 +332,7 @@ ggplot(diff_df, aes(x = genre, y = coefficient_diff, color = genre)) +
 
 ```
 
-```{r calculate probabilities for plots}
+```{r calculate probabilities for plots, ASK}
 
 # Generate predicted probabilities for all categories of 'bechdelRating'
 predicted_probs_model3 <- predict(model3, type = "probs")
@@ -368,7 +368,7 @@ data_longer_model3 <- data_long_model3 %>%
 ```
 
 # Plot
-```{r PLOT genres}
+```{r PLOT genres, JSK}
 # based on significant genres, marked by preceding plot, we will specifically plot them:
 data_long_model3_s <- data_longer_model3 %>%
   filter(genre %in% c("Action", "Comedy"))
